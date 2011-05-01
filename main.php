@@ -15,3 +15,4 @@ $package->writeTo('extractionTest');
 
 echo $package;
 $package->getIO()->__toTree();
+var_dump($package->getConfiguration());

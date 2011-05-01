@@ -18,6 +18,11 @@ class TYPO3_Extension_Package {
 	protected $name;
 
 	/**
+	 * @var TYPO3_Extension_Configuration
+	 */
+	protected $configuration;
+
+	/**
 	 * @var TYPO3_Extension_IO
 	 */
 	protected $IO;
@@ -27,7 +32,7 @@ class TYPO3_Extension_Package {
 		$IO = new TYPO3_Extension_IO();
 
 		/** @var $fileElement array */
-		foreach ($reader->get(TYPO3_Extension_Package::PACKAGE_Files) as $fileElement) {
+		foreach ($reader->get(self::PACKAGE_Files) as $fileElement) {
 			$fileName = $fileElement[TYPO3_Extension_IO::KEY_Name];
 			$filePath = dirname($fileName);
 
@@ -43,7 +48,12 @@ class TYPO3_Extension_Package {
 			);
 		}
 
-		$package = new TYPO3_Extension_Package($reader->get(TYPO3_Extension_Package::PACKAGE_Key));
+		$configuration = TYPO3_Extension_Configuration::create(
+			$reader->get(self::PACKAGE_Configuration)
+		);
+
+		$package = new TYPO3_Extension_Package($reader->get(self::PACKAGE_Key));
+		$package->setConfiguration($configuration);
 		$package->setIO($IO);
 
 		return $package;
@@ -63,6 +73,14 @@ class TYPO3_Extension_Package {
 
 	public function getName() {
 		return $this->name;
+	}
+
+	public function setConfiguration(TYPO3_Extension_Configuration $configuration) {
+		$this->configuration = $configuration;
+	}
+
+	public function getConfiguration() {
+		return $this->configuration;
 	}
 
 	public function setIO(TYPO3_Extension_IO $IO) {
