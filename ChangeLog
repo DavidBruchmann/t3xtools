@@ -1,3 +1,7 @@
+2011-05-08  Benjamin Mack  <benni@typo3.org>
+
+	* Added a functionality to download a .t3x file from a TER
+
 2011-04-21  Benjamin Mack  <benni.mack@typo3.org>
 
 	* Initial draft version of this extension
