@@ -7,12 +7,7 @@
  * To change this template use File | Settings | File Templates.
  */
  
-class TYPO3_Extension_IO_Directory {
-	/**
-	 * @var string
-	 */
-	protected $name;
-
+abstract class TYPO3_Extension_IO_Directory {
 	/**
 	 * @var array
 	 */
@@ -23,38 +18,64 @@ class TYPO3_Extension_IO_Directory {
 	 */
 	protected $directories = array();
 
-	public function __construct($name) {
-		$this->setName($name);
-	}
-
 	public function __toTree($depth = 0) {
-		echo str_repeat(' ', $depth * 2) . '[' . $this->getName() . ']' . PHP_EOL;
-
-		/** @var $directory TYPO3_Extension_IO_Directory */
-		foreach ($this->directories as $directory) {
-			$directory->__toTree($depth + 1);
-		}
-
 		/** @var $file TYPO3_Extension_IO_File */
 		foreach ($this->files as $file) {
 			$file->__toTree($depth + 1);
 		}
 
+		/** @var $directory TYPO3_Extension_IO_SubDirectory */
+		foreach ($this->directories as $directory) {
+			$directory->__toTree($depth + 1);
+		}
 	}
 
-	public function setName($name) {
-		$this->name = $name;
-	}
+	public function getAllFiles() {
+		$resources = array();
 
-	public function getName() {
-		return $this->name;
+		/** @var $file TYPO3_Extension_IO_File */
+		foreach ($this->files as $file) {
+			$resources[] = $file;
+		}
+
+		/** @var $directory TYPO3_Extension_IO_SubDirectory */
+		foreach ($this->directories as $directory) {
+			$resources = array_merge($resources, $directory->getAllFiles());
+		}
+
+		return $resources;
 	}
 
 	public function addFile(TYPO3_Extension_IO_File $file) {
+		if ($this->hasFile($file->getName())) {
+			throw new RuntimeException('File "' . $file->getName() . '" already exists');
+		}
+
 		$this->files[$file->getName()] = $file;
+		$file->setDirectory($this);
 	}
 
-	public function addDirectory(TYPO3_Extension_IO_Directory $directory) {
+	public function setFile(TYPO3_Extension_IO_File $file) {
+		$this->files[$file->getName()] = $file;
+		$file->setDirectory($this);
+	}
+
+	public function hasFile($fileName) {
+		return isset($this->files[$fileName]);
+	}
+
+	public function getFile($fileName) {
+		if ($this->hasFile($fileName)) {
+			return $this->files[$fileName];
+		}
+	}
+
+	public function addDirectory(TYPO3_Extension_IO_SubDirectory $directory) {
+		if (is_null($directory->getParent()) === FALSE) {
+			throw new RuntimeException('Directory is already attached to another parent directory.');
+		}
+
+		$directory->setParentDirectory($this);
 		$this->directories[$directory->getName()] = $directory;
 	}
 
@@ -85,6 +106,7 @@ class TYPO3_Extension_IO_Directory {
 	public function walk($path, $create = FALSE) {
 		$directory = $this;
 
+		$path = rtrim($path, DIRECTORY_SEPARATOR);
 		if (empty($path) === FALSE && $path !== '.') {
 			$pathSegments = explode(DIRECTORY_SEPARATOR, $path);
 
@@ -92,7 +114,7 @@ class TYPO3_Extension_IO_Directory {
 				if ($directory->hasDirectory($pathSegment)) {
 					$directory = $directory->getDirectory($pathSegment);
 				} elseif ($create) {
-					$directory->addDirectory(new TYPO3_Extension_IO_Directory($pathSegment));
+					$directory->addDirectory(new TYPO3_Extension_IO_SubDirectory($pathSegment));
 					$directory = $directory->getDirectory($pathSegment);
 				} else {
 					throw new RuntimeException('Directory "' . $pathSegment . '" not found.');
@@ -103,23 +125,22 @@ class TYPO3_Extension_IO_Directory {
 		return $directory;
 	}
 
-	public function writeTo($directory) {
-		$directory = $this->sanitize($directory);
-		$selfDirectory = $this->sanitize($directory . $this->getName());
+	public function writeTo($path) {
+		$path = $this->sanitize($path) . $this->getPath();
 
-		if (is_dir($selfDirectory) === FALSE) {
+		if (is_dir($path) === FALSE) {
 			// @todo Defined chmod
-			mkdir($selfDirectory);
+			mkdir($path);
 		}
 
 		/** @var $file TYPO3_Extension_IO_File */
 		foreach ($this->files as $file) {
-			$file->writeTo($selfDirectory);
+			$file->writeTo($path);
 		}
 
 		/** @var $directory TYPO3_Extension_IO_Directory */
 		foreach ($this->directories as $directory) {
-			$directory->writeTo($selfDirectory);
+			$directory->writeTo($path);
 		}
 	}
 
@@ -128,4 +149,16 @@ class TYPO3_Extension_IO_Directory {
 		$directory = preg_replace('#\./#', '', $directory);
 		return $directory;
 	}
+
+	abstract public function getPath();
+
+	abstract public function getFullPath();
+
+	abstract public function getRelativePath();
+
+	/**
+	 * @abstract
+	 * @return TYPO3_Extension_IO
+	 */
+	abstract public function getIO();
 }

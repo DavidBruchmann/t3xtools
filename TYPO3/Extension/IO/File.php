@@ -34,9 +34,53 @@ class TYPO3_Extension_IO_File {
 	protected $content;
 
 	/**
+	 * @var TYPO3_Extension_IO_Directory
+	 */
+	protected $directory;
+
+	/**
+	 * @var boolean
+	 */
+	protected $modified = FALSE;
+
+	/**
 	 * @var string
 	 */
 	protected $hash;
+
+	/**
+	 * @var array
+	 */
+	protected $writeCallback;
+
+	/**
+	 * @param string $file
+	 * @return TYPO3_Extension_IO_File
+	 */
+	public static function read($file) {
+		if (!file_exists($file)) {
+			throw new RuntimeException('File "' . $file . '" not found');
+		}
+
+		$content = file_get_contents($file);
+
+		return new TYPO3_Extension_IO_File(
+			basename($file),
+			filesize($file),
+			filemtime($file),
+			is_executable($file),
+			$content,
+			self::createHash($content)
+		);
+	}
+
+	public static function createEmpty($name) {
+		return new TYPO3_Extension_IO_File($name, 0, 0, FALSE, '');
+	}
+
+	public static function createHash($content) {
+		return substr(md5($content), 0, 4);
+	}
 
 	public function __construct($name, $size, $modificationTime, $executable, $content, $hash = NULL) {
 		$this->setName($name);
@@ -45,6 +89,8 @@ class TYPO3_Extension_IO_File {
 		$this->setExecutable($executable);
 		$this->setContent($content);
 		$this->setHash($hash);
+
+		$this->modified = FALSE;
 	}
 
 	public function __toArray() {
@@ -52,7 +98,7 @@ class TYPO3_Extension_IO_File {
 	}
 
 	public function __toTree($depth) {
-		echo str_repeat(' ', $depth * 2) . $this->getName() . PHP_EOL;
+		echo str_repeat(' ', ($depth + 1) * 2) . $this->getName() . PHP_EOL;
 	}
 
 	public function setName($name) {
@@ -88,6 +134,12 @@ class TYPO3_Extension_IO_File {
 	}
 
 	public function setContent($content) {
+		if (isset($this->content)) {
+			$this->modified = TRUE;
+			$this->setSize(strlen($content));
+			$this->setHash(self::createHash($content));
+		}
+
 		$this->content = $content;
 	}
 
@@ -103,11 +155,70 @@ class TYPO3_Extension_IO_File {
 		return $this->hash;
 	}
 
+	public function getShortHash() {
+		return substr($this->getHash(), 0, 4);
+	}
+
+	public function setDirectory(TYPO3_Extension_IO_Directory $directory) {
+		$this->directory = $directory;
+	}
+
+	public function getDirectory() {
+		return $this->directory;
+	}
+
+	public function isModified() {
+		return $this->modified;
+	}
+
 	public function writeTo($directory) {
+		$this->executeWriteCallback();
+
 		$directory = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
 		$selfFileName = $directory . $this->getName();
 
 		file_put_contents($selfFileName, $this->getContent());
-		touch($selfFileName, $this->getModificationTime());
+
+		// Preserve modification time if content was not changed
+		if ($this->isModified() === FALSE) {
+			touch($selfFileName, $this->getModificationTime());
+		}
+	}
+
+	public function write() {
+		if (is_null($this->directory)) {
+			throw new RuntimeException('This is an anonymous file and not related to a directory.');
+		}
+
+		$this->writeTo($this->getDirectory()->getFullPath());
+	}
+
+	public function getFullPath() {
+		if (is_null($this->directory)) {
+			throw new RuntimeException('This is an anonymous file and not related to a directory.');
+		}
+
+		return $this->getDirectory()->getFullPath() . $this->getName();
+	}
+
+	public function getRelativePath() {
+		if (is_null($this->directory)) {
+			throw new RuntimeException('This is an anonymous file and not related to a directory.');
+		}
+
+		return $this->getDirectory()->getRelativePath() . $this->getName();
+	}
+
+	public function setWriteCallback($writeCallbackObject, $writeCallbackMethod) {
+		$this->writeCallback = array($writeCallbackObject, $writeCallbackMethod);
+	}
+
+	protected function executeWriteCallback() {
+		if (isset($this->writeCallback)) {
+			call_user_func_array(
+				$this->writeCallback,
+				array($this)
+			);
+		}
 	}
 }

@@ -29,7 +29,12 @@ class TYPO3_Extension_Package {
 
 	public static function read($file) {
 		$reader = new TYPO3_Extension_Package_Reader($file);
-		$IO = new TYPO3_Extension_IO();
+		$IO = new TYPO3_Extension_IO(TYPO3_Extension_IO::CONTEXT_Package);
+		$IO->setConfigurationFile(
+			TYPO3_Extension_IO_File::createEmpty(
+				TYPO3_Extension_IO::FILE_Configuration
+			)
+		);
 
 		/** @var $fileElement array */
 		foreach ($reader->get(self::PACKAGE_Files) as $fileElement) {
@@ -49,8 +54,11 @@ class TYPO3_Extension_Package {
 		}
 
 		$configuration = TYPO3_Extension_Configuration::create(
-			$reader->get(self::PACKAGE_Configuration)
+			$reader->get(self::PACKAGE_Configuration),
+			$reader->get(self::PACKAGE_Key)
 		);
+		$configuration->setFile($IO->getConfigurationFile());
+		$configuration->updateMD5Values();
 
 		$package = new TYPO3_Extension_Package($reader->get(self::PACKAGE_Key));
 		$package->setConfiguration($configuration);

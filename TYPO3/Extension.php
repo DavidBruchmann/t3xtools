@@ -9,32 +9,65 @@
  
 class TYPO3_Extension {
 	/**
-	 * @var string
+	 * @var TYPO3_Extension_Configuration
 	 */
-	protected $name;
+	protected $configuration;
 
 	/**
-	 * @var TYPO3_Extension_Meta
+	 * @var TYPO3_Extension_IO
 	 */
-	protected $meta;
+	protected $IO;
 
-	public function __construct($name) {
-		$this->setName($name);
+	/**
+	 * @param  $directory
+	 * @return TYPO3_Extension
+	 */
+	public static function read($directory) {
+		$IO = new TYPO3_Extension_IO(TYPO3_Extension_IO::CONTEXT_Extension);
+		$IO->setFileSystemOrigin($directory);
+		$IO->readConfigurationFile();
+		$IO->refresh();
+
+		$extension = new TYPO3_Extension(
+			TYPO3_Extension_Configuration::read(
+				$IO->getConfigurationFile(),
+				self::extractKey($directory)
+			)
+		);
+
+		$extension->setIO($IO);
+
+		return $extension;
 	}
 
-	public function setName($name) {
-		$this->name = $name;
+	public static function extractKey($directory) {
+		$directory = rtrim($directory, DIRECTORY_SEPARATOR);
+		$parts = explode(DIRECTORY_SEPARATOR, $directory);
+
+		if (count($parts) === 0) {
+			throw new RuntimeException('Extension key could not be extracted from directory.');
+		}
+
+		return $parts[count($parts) - 1];
 	}
 
-	public function getName() {
-		return $this->name;
+	public function __construct(TYPO3_Extension_Configuration $configuration) {
+		$this->setConfiguration($configuration);
 	}
 
-	public function setMeta(TYPO3_Extension_Meta $meta) {
-		$this->meta = $meta;
+	public function setIO(TYPO3_Extension_IO $IO) {
+		$this->IO = $IO;
 	}
 
-	public function getMeta() {
-		return $this->meta;
+	public function getIO() {
+		return $this->IO;
+	}
+
+	public function setConfiguration(TYPO3_Extension_Configuration $configuration) {
+		$this->configuration = $configuration;
+	}
+
+	public function getConfiguration() {
+		return $this->configuration;
 	}
 }
