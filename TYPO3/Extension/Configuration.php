@@ -353,7 +353,7 @@ EOD;
 
 		$header = str_replace(
 			array('{key}', '{datetime}'),
-			array($this->getKey(), date('c')),
+			array($this->getKey(), date('Y-m-d H:i')),
 			$header
 		);
 

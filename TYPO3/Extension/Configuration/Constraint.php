@@ -27,7 +27,6 @@ class TYPO3_Extension_Configuration_Constraint {
 	protected $highestVersion;
 
 	public static function create($name, $versionRange) {
-		$lowestVersion = $highestVersion = NULL;
 		$versions = explode('-', $versionRange, 2);
 
 		$lowestVersion = (isset($versions[0]) && empty($versions[0]) === FALSE ? $versions[0] : '0.0.0');
@@ -40,7 +39,7 @@ class TYPO3_Extension_Configuration_Constraint {
 		);
 	}
 
-	public function __construct($name, TYPO3_Version $lowestVersion = NULL, TYPO3_Version $highestVersion = NULL) {
+	public function __construct($name, TYPO3_Version $lowestVersion, TYPO3_Version $highestVersion) {
 		$this->setName($name);
 		$this->setLowestVersion($lowestVersion);
 		$this->setHighestVersion($highestVersion);
@@ -54,7 +53,7 @@ class TYPO3_Extension_Configuration_Constraint {
 		return $this->name;
 	}
 
-	public function setLowestVersion(TYPO3_Version $lowestVersion = NULL) {
+	public function setLowestVersion(TYPO3_Version $lowestVersion) {
 		$this->lowestVersion = $lowestVersion;
 		$this->validate();
 	}
@@ -63,7 +62,7 @@ class TYPO3_Extension_Configuration_Constraint {
 		return $this->lowestVersion;
 	}
 
-	public function setHighestVersion(TYPO3_Version $highestVersion = NULL) {
+	public function setHighestVersion(TYPO3_Version $highestVersion) {
 		$this->highestVersion = $highestVersion;
 		$this->validate();
 	}
@@ -73,12 +72,13 @@ class TYPO3_Extension_Configuration_Constraint {
 	}
 
 	public function getVersionRange() {
-		$versions = array(
-			(isset($this->lowestVersion) ? $this->lowestVersion->get() : ''),
-			(isset($this->highestVersion) ? $this->highestVersion->get() : ''),
-		);
+		$versionRange = '';
 
-		return implode('-', $versions);
+		if ($this->lowestVersion->__toInteger() > 0 || $this->highestVersion->__toInteger() > 0) {
+			$versionRange = $this->lowestVersion->get() . '-' . $this->highestVersion->get();
+		}
+
+		return $versionRange;
 	}
 
 	protected function validate() {

@@ -40,7 +40,7 @@ class TYPO3_Version {
 			}
 		}
 
-		return $string;
+		return intval($string);
 	}
 
 	public function __toString() {
